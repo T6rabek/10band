@@ -535,7 +535,7 @@ const TypingTrainer = () => {
   };
 
   const handleKeyDown = e => {
-    if (e.keyCode === 32) {
+    if (e.keyCode === 32 || 13) {
       // Spacebar
       e.preventDefault();
       const currentWord = words[currentWordIndex];
@@ -602,7 +602,7 @@ const TypingTrainer = () => {
 
   return (
     <div className="bg-white p-6 sm:p-8 rounded-2xl shadow-xl">
-      <h2 className="text-3xl font-bold text-gray-800 mb-6">Typing Trainer</h2>
+      <h2 className="text-3xl font-bold text-gray-800 mb-6">Typing Trainer. To move to next word, press spacebar or enter</h2>
       <div className="flex flex-col sm:flex-row gap-4 mb-6">
         <div className="flex-1 flex gap-2 p-2 bg-gray-100 rounded-xl">
           <ModeButton value="time" label="Time" icon={<Timer size={20} />} />
