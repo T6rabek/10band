@@ -5,6 +5,7 @@ import {
   CheckCircle,
   Clock,
   Home,
+  RefreshCw,
   Menu,
   X,
   MonitorPlay,
@@ -488,202 +489,307 @@ const IELTSWritingPractice = () => {
 
 // --- TYPING TRAINER (OVERHAULED & FIXED) ---
 const TypingTrainer = () => {
-    const [mode, setMode] = useState('time');
-    const [config, setConfig] = useState(30);
-    const [words, setWords] = useState('');
-    const [userInput, setUserInput] = useState('');
-    const [status, setStatus] = useState('waiting'); // waiting, running, finished
-    const [timer, setTimer] = useState(0);
-    const [results, setResults] = useState({ wpm: 0, accuracy: 0, correct: 0, incorrect: 0 });
-    const inputRef = useRef(null);
-    const intervalRef = useRef(null);
+  const [mode, setMode] = useState('time');
+  const [config, setConfig] = useState(30);
+  const [words, setWords] = useState('');
+  const [userInput, setUserInput] = useState('');
+  const [status, setStatus] = useState('waiting'); // waiting, running, finished
+  const [timer, setTimer] = useState(0);
+  const [results, setResults] = useState({
+    wpm: 0,
+    accuracy: 0,
+    correct: 0,
+    incorrect: 0,
+  });
+  const inputRef = useRef(null);
+  const intervalRef = useRef(null);
 
-    const startTest = () => {
-        const newWords = generateWords(mode === 'words' ? config : 100);
-        setWords(newWords);
-        setUserInput('');
-        setStatus('running');
-        setTimer(mode === 'time' ? config : 0);
-        setResults({ wpm: 0, accuracy: 0, correct: 0, incorrect: 0 });
-        if (inputRef.current) {
-            inputRef.current.focus();
-        }
-    };
+  const startTest = () => {
+    const newWords = generateWords(mode === 'words' ? config : 100);
+    setWords(newWords);
+    setUserInput('');
+    setStatus('running');
+    setTimer(mode === 'time' ? config : 0);
+    setResults({ wpm: 0, accuracy: 0, correct: 0, incorrect: 0 });
+    if (inputRef.current) {
+      inputRef.current.focus();
+    }
+  };
 
-    useEffect(() => {
-        if (status === 'running') {
-            if (mode === 'time') {
-                intervalRef.current = setInterval(() => {
-                    setTimer(prev => {
-                        if (prev <= 1) {
-                            clearInterval(intervalRef.current);
-                            setStatus('finished');
-                            calculateResults();
-                            return 0;
-                        }
-                        return prev - 1;
-                    });
-                }, 1000);
-            } else {
-                 intervalRef.current = setInterval(() => {
-                    setTimer(prev => prev + 1);
-                }, 1000);
+  // Timer logic
+  useEffect(() => {
+    if (status === 'running') {
+      if (mode === 'time') {
+        intervalRef.current = setInterval(() => {
+          setTimer(prev => {
+            if (prev <= 1) {
+              clearInterval(intervalRef.current);
+              setStatus('finished');
+              return 0;
             }
-        }
-        return () => clearInterval(intervalRef.current);
-    }, [status, mode]);
+            return prev - 1;
+          });
+        }, 1000);
+      } else {
+        intervalRef.current = setInterval(() => {
+          setTimer(prev => prev + 1);
+        }, 1000);
+      }
+    }
+    return () => clearInterval(intervalRef.current);
+  }, [status, mode]);
 
-    const calculateResults = () => {
-        const typedChars = userInput.length;
-        let correctChars = 0;
-        let incorrectChars = 0;
+  // Function to calculate results
+  const calculateResults = () => {
+    const typedChars = userInput.length;
+    let correctChars = 0;
+    let incorrectChars = 0;
 
-        for (let i = 0; i < typedChars; i++) {
-            if (userInput[i] === words[i]) {
-                correctChars++;
-            } else {
-                incorrectChars++;
-            }
-        }
-        
-        const durationInMinutes = (mode === 'time' ? config : timer) / 60;
-        const wpm = durationInMinutes > 0 ? Math.round((correctChars / 5) / durationInMinutes) : 0;
-        const accuracy = typedChars > 0 ? Math.round((correctChars / typedChars) * 100) : 0;
+    for (let i = 0; i < typedChars; i++) {
+      if (userInput[i] === words[i]) {
+        correctChars++;
+      } else {
+        incorrectChars++;
+      }
+    }
 
-        setResults({ wpm, accuracy, correct: correctChars, incorrect: incorrectChars });
-    };
+    const durationInMinutes = (mode === 'time' ? config : timer) / 60;
+    const wpm =
+      durationInMinutes > 0
+        ? Math.round(correctChars / 5 / durationInMinutes)
+        : 0;
+    const accuracy =
+      typedChars > 0 ? Math.round((correctChars / typedChars) * 100) : 0;
 
-    const handleInputChange = (e) => {
-        const value = e.target.value;
-        setUserInput(value);
+    setResults({
+      wpm,
+      accuracy,
+      correct: correctChars,
+      incorrect: incorrectChars,
+    });
+  };
 
-        if (status !== 'running') {
-            startTest();
-        }
+  // Handle input changes
+  const handleInputChange = e => {
+    const value = e.target.value;
+    setUserInput(value);
 
-        if (mode === 'words' && value.length >= words.length) {
-            clearInterval(intervalRef.current);
-            setStatus('finished');
-            calculateResults();
-        }
-    };
-    
-    useEffect(() => {
-        if(status === 'running') {
-            calculateResults();
-        }
-    }, [userInput, status]);
+    if (status !== 'running') {
+      setStatus('running');
+    }
 
+    if (mode === 'words' && value.length >= words.length) {
+      clearInterval(intervalRef.current);
+      setStatus('finished');
+    }
+  };
 
-    const resetTest = () => {
-        clearInterval(intervalRef.current);
-        setStatus('waiting');
-        setWords('');
-        setUserInput('');
-        setTimer(0);
-        setResults({ wpm: 0, accuracy: 0, correct: 0, incorrect: 0 });
-    };
+  // Calculate live results while running
+  useEffect(() => {
+    if (status === 'running') {
+      calculateResults();
+    }
+  }, [userInput, status]);
 
-    const ConfigButton = ({ value, label, currentConfig, setConfigCallback }) => (
-        <button onClick={() => { setConfigCallback(value); resetTest(); }} className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${currentConfig === value ? 'bg-blue-600 text-white shadow' : 'bg-gray-200 hover:bg-gray-300'}`}>
-            {label}
-        </button>
-    );
+  // **FIX**: Calculate final results only when the test is finished
+  useEffect(() => {
+    if (status === 'finished') {
+      calculateResults();
+    }
+  }, [status]);
 
-    return (
-        <div className="bg-gradient-to-br from-gray-50 to-blue-100 p-6 sm:p-8 rounded-2xl shadow-xl border border-gray-200">
-            <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">Typing Speed Test</h2>
-            
-            <div className="flex justify-center flex-wrap gap-4 mb-8">
-                <div className="flex items-center gap-2 p-2 bg-white/50 rounded-lg shadow-inner">
-                    <span className="font-semibold text-gray-600 mr-2">Mode:</span>
-                    <ConfigButton value="time" label="Time" currentConfig={mode} setConfigCallback={setMode} />
-                    <ConfigButton value="words" label="Words" currentConfig={mode} setConfigCallback={setMode} />
-                </div>
-                <div className="flex items-center gap-2 p-2 bg-white/50 rounded-lg shadow-inner">
-                    <span className="font-semibold text-gray-600 mr-2">Set:</span>
-                    {mode === 'time' ? (
-                        <>
-                            <ConfigButton value={15} label="15s" currentConfig={config} setConfigCallback={setConfig} />
-                            <ConfigButton value={30} label="30s" currentConfig={config} setConfigCallback={setConfig} />
-                            <ConfigButton value={60} label="60s" currentConfig={config} setConfigCallback={setConfig} />
-                        </>
-                    ) : (
-                        <>
-                            <ConfigButton value={10} label="10w" currentConfig={config} setConfigCallback={setConfig} />
-                            <ConfigButton value={25} label="25w" currentConfig={config} setConfigCallback={setConfig} />
-                            <ConfigButton value={50} label="50w" currentConfig={config} setConfigCallback={setConfig} />
-                        </>
-                    )}
-                </div>
-            </div>
+  const resetTest = () => {
+    clearInterval(intervalRef.current);
+    setStatus('waiting');
+    setWords('');
+    setUserInput('');
+    setTimer(0);
+    setResults({ wpm: 0, accuracy: 0, correct: 0, incorrect: 0 });
+  };
 
-            {status === 'waiting' && (
-                <div className="text-center py-16">
-                    <button onClick={startTest} className="px-10 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xl font-bold rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105">
-                        Start Typing Test
-                    </button>
-                </div>
-            )}
+  const ConfigButton = ({ value, label, currentConfig, setConfigCallback }) => (
+    <button
+      onClick={() => {
+        setConfigCallback(value);
+        resetTest();
+      }}
+      className={`px-4 py-2 text-sm font-medium rounded-md transition-all ${
+        currentConfig === value
+          ? 'bg-blue-600 text-white shadow'
+          : 'bg-gray-200 hover:bg-gray-300'
+      }`}
+    >
+      {label}
+    </button>
+  );
 
-            {(status === 'running' || status === 'finished') && (
-                <>
-                    <div className="relative">
-                        <textarea
-                            ref={inputRef}
-                            value={userInput}
-                            onChange={handleInputChange}
-                            className="absolute inset-0 z-10 w-full h-full p-4 text-2xl font-mono bg-transparent text-transparent caret-blue-500 resize-none border-none focus:outline-none"
-                            disabled={status === 'finished'}
-                        />
-                        <div className="bg-white p-4 rounded-lg text-2xl font-mono h-48 overflow-hidden select-none relative z-0">
-                            <div className="whitespace-pre-wrap break-words text-gray-400">
-                                {words.split('').map((char, index) => {
-                                    let charClass = '';
-                                    if (index < userInput.length) {
-                                        charClass = char === userInput[index] ? 'text-green-500' : 'text-red-500 bg-red-100';
-                                    }
-                                    return <span key={index} className={charClass}>{char}</span>;
-                                })}
-                            </div>
-                        </div>
-                    </div>
+  return (
+    <div className="bg-gradient-to-br from-gray-50 to-blue-100 p-6 sm:p-8 rounded-2xl shadow-xl border border-gray-200">
+      <h2 className="text-3xl font-bold text-gray-800 mb-6 text-center">
+        Typing Speed Test
+      </h2>
 
-                    <div className="flex justify-between items-center mt-6">
-                        <div className="flex items-center gap-6">
-                            <div className="text-center">
-                                <p className="text-sm text-gray-500">WPM</p>
-                                <p className="text-3xl font-bold text-blue-600">{results.wpm}</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-sm text-gray-500">Accuracy</p>
-                                <p className="text-3xl font-bold text-green-600">{results.accuracy}%</p>
-                            </div>
-                            <div className="text-center">
-                                <p className="text-sm text-gray-500">Time</p>
-                                <p className="text-3xl font-bold text-gray-700">{mode === 'time' ? timer : timer}s</p>
-                            </div>
-                        </div>
-                        <button onClick={resetTest} className="p-3 bg-white rounded-full shadow-md hover:bg-gray-100 transition-all transform hover:rotate-180">
-                            <RefreshCw size={24} className="text-gray-600" />
-                        </button>
-                    </div>
-
-                    {status === 'finished' && (
-                        <div className="mt-8 text-center p-6 bg-white/70 border border-green-300 rounded-lg shadow-lg animate-fade-in">
-                            <h3 className="text-2xl font-semibold text-green-800">Test Complete!</h3>
-                            <div className="flex justify-center gap-8 mt-4">
-                                <div><span className="font-bold">{results.wpm}</span> WPM</div>
-                                <div><span className="font-bold">{results.accuracy}%</span> Accuracy</div>
-                                <div><span className="font-bold">{results.correct}</span> Correct</div>
-                                <div><span className="font-bold">{results.incorrect}</span> Incorrect</div>
-                            </div>
-                        </div>
-                    )}
-                </>
-            )}
+      <div className="flex justify-center flex-wrap gap-4 mb-8">
+        <div className="flex items-center gap-2 p-2 bg-white/50 rounded-lg shadow-inner">
+          <span className="font-semibold text-gray-600 mr-2">Mode:</span>
+          <ConfigButton
+            value="time"
+            label="Time"
+            currentConfig={mode}
+            setConfigCallback={setMode}
+          />
+          <ConfigButton
+            value="words"
+            label="Words"
+            currentConfig={mode}
+            setConfigCallback={setMode}
+          />
         </div>
-    );
+        <div className="flex items-center gap-2 p-2 bg-white/50 rounded-lg shadow-inner">
+          <span className="font-semibold text-gray-600 mr-2">Set:</span>
+          {mode === 'time' ? (
+            <>
+              <ConfigButton
+                value={15}
+                label="15s"
+                currentConfig={config}
+                setConfigCallback={setConfig}
+              />
+              <ConfigButton
+                value={30}
+                label="30s"
+                currentConfig={config}
+                setConfigCallback={setConfig}
+              />
+              <ConfigButton
+                value={60}
+                label="60s"
+                currentConfig={config}
+                setConfigCallback={setConfig}
+              />
+            </>
+          ) : (
+            <>
+              <ConfigButton
+                value={10}
+                label="10w"
+                currentConfig={config}
+                setConfigCallback={setConfig}
+              />
+              <ConfigButton
+                value={25}
+                label="25w"
+                currentConfig={config}
+                setConfigCallback={setConfig}
+              />
+              <ConfigButton
+                value={50}
+                label="50w"
+                currentConfig={config}
+                setConfigCallback={setConfig}
+              />
+            </>
+          )}
+        </div>
+      </div>
+
+      {status === 'waiting' && (
+        <div className="text-center py-16">
+          <button
+            onClick={startTest}
+            className="px-10 py-4 bg-gradient-to-r from-blue-500 to-indigo-600 text-white text-xl font-bold rounded-lg shadow-lg hover:shadow-xl transition-all transform hover:scale-105"
+          >
+            Start Typing Test
+          </button>
+        </div>
+      )}
+
+      {(status === 'running' || status === 'finished') && (
+        <>
+          <div className="relative">
+            <textarea
+              ref={inputRef}
+              value={userInput}
+              onChange={handleInputChange}
+              className="absolute inset-0 z-10 w-full h-full p-4 text-2xl font-mono bg-transparent text-transparent caret-blue-500 resize-none border-none focus:outline-none"
+              disabled={status === 'finished'}
+            />
+            <div className="bg-white p-4 rounded-lg text-2xl font-mono h-48 overflow-hidden select-none relative z-0">
+              <div className="whitespace-pre-wrap break-words text-gray-400">
+                {words.split('').map((char, index) => {
+                  let charClass = '';
+                  if (index < userInput.length) {
+                    charClass =
+                      char === userInput[index]
+                        ? 'text-green-500'
+                        : 'text-red-500 bg-red-100';
+                  }
+                  return (
+                    <span key={index} className={charClass}>
+                      {char}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          <div className="flex justify-between items-center mt-6">
+            <div className="flex items-center gap-6">
+              <div className="text-center">
+                <p className="text-sm text-gray-500">WPM</p>
+                <p className="text-3xl font-bold text-blue-600">
+                  {results.wpm}
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">Accuracy</p>
+                <p className="text-3xl font-bold text-green-600">
+                  {results.accuracy}%
+                </p>
+              </div>
+              <div className="text-center">
+                <p className="text-sm text-gray-500">Time</p>
+                <p className="text-3xl font-bold text-gray-700">
+                  {mode === 'time' ? timer : timer}s
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={resetTest}
+              className="p-3 bg-white rounded-full shadow-md hover:bg-gray-100 transition-all transform hover:rotate-180"
+            >
+              <RefreshCw size={24} className="text-gray-600" />
+            </button>
+          </div>
+
+          {status === 'finished' && (
+            <div className="mt-8 text-center p-6 bg-white/70 border border-green-300 rounded-lg shadow-lg animate-fade-in">
+              <h3 className="text-2xl font-semibold text-green-800">
+                Test Complete!
+              </h3>
+              <div className="flex justify-center gap-8 mt-4">
+                <div>
+                  <span className="font-bold">{results.wpm}</span> WPM
+                </div>
+                <div>
+                  <span className="font-bold">{results.accuracy}%</span>{' '}
+                  Accuracy
+                </div>
+                <div>
+                  <span className="font-bold">{results.correct}</span> Correct
+                </div>
+                <div>
+                  <span className="font-bold">{results.incorrect}</span>{' '}
+                  Incorrect
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
 };
 
 
